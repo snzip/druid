@@ -34,15 +34,19 @@ public interface JdbcConstants {
 
     public static final String SQL_SERVER        = "sqlserver";
     public static final String SQL_SERVER_DRIVER = "com.microsoft.jdbc.sqlserver.SQLServerDriver";
+    public static final String SQL_SERVER_DRIVER_SQLJDBC4 = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+    public static final String SQL_SERVER_DRIVER_JTDS = "net.sourceforge.jtds.jdbc.Driver";
 
     public static final String ORACLE            = "oracle";
     public static final String ORACLE_DRIVER     = "oracle.jdbc.OracleDriver";
+    public static final String ORACLE_DRIVER2    = "oracle.jdbc.driver.OracleDriver";
 
     public static final String ALI_ORACLE        = "AliOracle";
     public static final String ALI_ORACLE_DRIVER = "com.alibaba.jdbc.AlibabaDriver";
 
     public static final String MYSQL             = "mysql";
     public static final String MYSQL_DRIVER      = "com.mysql.jdbc.Driver";
+    public static final String MYSQL_DRIVER_6    = "com.mysql.cj.jdbc.Driver";
 
     public static final String MARIADB           = "mariadb";
     public static final String MARIADB_DRIVER    = "org.mariadb.jdbc.Driver";
@@ -65,6 +69,8 @@ public interface JdbcConstants {
 
     public static final String OCEANBASE         = "oceanbase";
     public static final String OCEANBASE_DRIVER  = "com.mysql.jdbc.Driver";
+
+    public static final String INFORMIX          = "informix";
     
     /**
      * 阿里云odps
@@ -80,4 +86,13 @@ public interface JdbcConstants {
      */
     public static final String LOG4JDBC          = "log4jdbc";
     public static final String LOG4JDBC_DRIVER   = "net.sf.log4jdbc.DriverSpy";
+
+    public static final String PHOENIX           = "phoenix";
+    public static final String PHOENIX_DRIVER    = "org.apache.phoenix.jdbc.PhoenixDriver";
+
+    public static final String ENTERPRISEDB        = "edb";
+    public static final String ENTERPRISEDB_DRIVER = "com.edb.Driver";
+
+    public static final String SQLITE              = "sqlite";
+    public static final String SQLITE_DRIVER       = "org.sqlite.JDBC";
 }

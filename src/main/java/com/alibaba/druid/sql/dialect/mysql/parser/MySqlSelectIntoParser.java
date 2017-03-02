@@ -36,7 +36,7 @@ import com.alibaba.druid.sql.dialect.mysql.ast.MySqlUseIndexHint;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlSelectIntoStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOutFileExpr;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock.Limit;
+import com.alibaba.druid.sql.ast.SQLLimit;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnionQuery;
 import com.alibaba.druid.sql.parser.ParserException;
 import com.alibaba.druid.sql.parser.SQLExprParser;
@@ -157,7 +157,7 @@ public class MySqlSelectIntoParser extends SQLSelectParser {
         queryBlock.setOrderBy(this.exprParser.parseOrderBy());
 
         if (lexer.token() == Token.LIMIT) {
-            queryBlock.setLimit(parseLimit());
+            queryBlock.setLimit(this.exprParser.parseLimit());
         }
 
         if (lexer.token() == Token.PROCEDURE) {
@@ -344,13 +344,9 @@ public class MySqlSelectIntoParser extends SQLSelectParser {
     public SQLUnionQuery unionRest(SQLUnionQuery union) {
         if (lexer.token() == Token.LIMIT) {
             MySqlUnionQuery mysqlUnionQuery = (MySqlUnionQuery) union;
-            mysqlUnionQuery.setLimit(parseLimit());
+            mysqlUnionQuery.setLimit(this.exprParser.parseLimit());
         }
         return super.unionRest(union);
-    }
-
-    public Limit parseLimit() {
-        return ((MySqlExprParser) this.exprParser).parseLimit();
     }
     
     public MySqlExprParser getExprParser() {

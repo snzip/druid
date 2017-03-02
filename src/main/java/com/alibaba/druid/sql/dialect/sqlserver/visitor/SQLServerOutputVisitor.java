@@ -18,12 +18,7 @@ package com.alibaba.druid.sql.dialect.sqlserver.visitor;
 import com.alibaba.druid.sql.ast.SQLName;
 import com.alibaba.druid.sql.ast.SQLSetQuantifier;
 import com.alibaba.druid.sql.ast.SQLStatement;
-import com.alibaba.druid.sql.ast.statement.SQLAssignItem;
-import com.alibaba.druid.sql.ast.statement.SQLBlockStatement;
-import com.alibaba.druid.sql.ast.statement.SQLColumnConstraint;
-import com.alibaba.druid.sql.ast.statement.SQLColumnDefinition;
-import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLGrantStatement;
+import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.SQLServerOutput;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.SQLServerSelect;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.SQLServerSelectQueryBlock;
@@ -40,11 +35,17 @@ import com.alibaba.druid.sql.dialect.sqlserver.ast.stmt.SQLServerSetTransactionI
 import com.alibaba.druid.sql.dialect.sqlserver.ast.stmt.SQLServerUpdateStatement;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.stmt.SQLServerWaitForStatement;
 import com.alibaba.druid.sql.visitor.SQLASTOutputVisitor;
+import com.alibaba.druid.util.JdbcConstants;
 
 public class SQLServerOutputVisitor extends SQLASTOutputVisitor implements SQLServerASTVisitor {
 
     public SQLServerOutputVisitor(Appendable appender){
-        super(appender);
+        super(appender, JdbcConstants.SQL_SERVER);
+    }
+
+    public SQLServerOutputVisitor(Appendable appender, boolean parameterized){
+        super(appender, parameterized);
+        this.dbType = JdbcConstants.SQL_SERVER;
     }
 
     public boolean visit(SQLServerSelectQueryBlock x) {
@@ -88,6 +89,8 @@ public class SQLServerOutputVisitor extends SQLASTOutputVisitor implements SQLSe
             println();
             x.getGroupBy().accept(this);
         }
+
+        printFetchFirst(x);
 
         return false;
     }
@@ -151,23 +154,7 @@ public class SQLServerOutputVisitor extends SQLASTOutputVisitor implements SQLSe
         
         x.getTableSource().accept(this);
 
-        if (x.getColumns().size() > 0) {
-            incrementIndent();
-            println();
-            print('(');
-            for (int i = 0, size = x.getColumns().size(); i < size; ++i) {
-                if (i != 0) {
-                    if (i % 5 == 0) {
-                        println();
-                    }
-                    print0(", ");
-                }
-
-                x.getColumns().get(i).accept(this);
-            }
-            print(')');
-            decrementIndent();
-        }
+        printInsertColumns(x.getColumns());
         
         if (x.getOutput() != null) {
             println();
@@ -177,8 +164,7 @@ public class SQLServerOutputVisitor extends SQLASTOutputVisitor implements SQLSe
 
         if (x.getValuesList().size() != 0) {
             println();
-            print0(ucase ? "VALUES" : "values");
-            println();
+            print0(ucase ? "VALUES " : "values ");
             for (int i = 0, size = x.getValuesList().size(); i < size; ++i) {
                 if (i != 0) {
                     print(',');
@@ -256,17 +242,17 @@ public class SQLServerOutputVisitor extends SQLASTOutputVisitor implements SQLSe
     }
 
     public boolean visit(SQLExprTableSource x) {
-        x.getExpr().accept(this);
+        printTableSourceExpr(x.getExpr());
+
+        if (x.getAlias() != null) {
+            print(' ');
+            print0(x.getAlias());
+        }
 
         if (x.getHints() != null && x.getHints().size() > 0) {
             print0(ucase ? " WITH (" : " with (");
             printAndAccept(x.getHints(), ", ");
             print(')');
-        }
-
-        if (x.getAlias() != null) {
-            print(' ');
-            print0(x.getAlias());
         }
 
         return false;
@@ -469,6 +455,12 @@ public class SQLServerOutputVisitor extends SQLASTOutputVisitor implements SQLSe
             }
         }
         
+        if (x.getXmlPath() != null) {
+            println();
+            print0(ucase ? "FOR XML " : "for xml ");
+            x.getXmlPath().accept(this);
+        }
+        
         if (x.getOffset() != null) {
             println();
             print0(ucase ? "OFFSET " : "offset ");
@@ -574,7 +566,19 @@ public class SQLServerOutputVisitor extends SQLASTOutputVisitor implements SQLSe
 
 	@Override
 	public void endVisit(SQLServerParameter x) {
-		// TODO Auto-generated method stub
+
 		
 	}
+
+    @Override
+    public boolean visit(SQLStartTransactionStatement x) {
+        print0(ucase ? "BEGIN TRANSACTION" : "begin transaction");
+
+        if (x.getName() != null) {
+            print(' ');
+            x.getName().accept(this);
+        }
+
+        return false;
+    }
 }

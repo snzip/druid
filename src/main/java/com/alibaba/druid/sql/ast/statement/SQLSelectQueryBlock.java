@@ -19,7 +19,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.alibaba.druid.sql.ast.SQLExpr;
+import com.alibaba.druid.sql.ast.SQLLimit;
 import com.alibaba.druid.sql.ast.SQLObjectImpl;
+import com.alibaba.druid.sql.ast.SQLOrderBy;
 import com.alibaba.druid.sql.visitor.SQLASTVisitor;
 
 public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery {
@@ -31,7 +33,13 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
     protected SQLExprTableSource        into;
     protected SQLExpr                   where;
     protected SQLSelectGroupByClause    groupBy;
-    protected boolean parenthesized = false;
+    protected SQLOrderBy                orderBy;
+    protected boolean                   parenthesized = false;
+    protected boolean                   forUpdate     = false;
+    protected boolean                   noWait        = false;
+    protected SQLExpr                   waitTime;
+
+    protected SQLLimit                  limit;
 
     public SQLSelectQueryBlock(){
 
@@ -57,6 +65,9 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
     }
 
     public void setGroupBy(SQLSelectGroupByClause groupBy) {
+        if (groupBy != null) {
+            groupBy.setParent(this);
+        }
         this.groupBy = groupBy;
     }
 
@@ -69,6 +80,18 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
             where.setParent(this);
         }
         this.where = where;
+    }
+    
+    public SQLOrderBy getOrderBy() {
+        return orderBy;
+    }
+
+    public void setOrderBy(SQLOrderBy orderBy) {
+        if (orderBy != null) {
+            orderBy.setParent(this);
+        }
+        
+        this.orderBy = orderBy;
     }
 
     public int getDistionOption() {
@@ -93,6 +116,9 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
     }
 
     public void setFrom(SQLTableSource from) {
+        if (from != null) {
+            from.setParent(this);
+        }
         this.from = from;
     }
 
@@ -103,6 +129,74 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
 	public void setParenthesized(boolean parenthesized) {
 		this.parenthesized = parenthesized;
 	}
+	
+    public boolean isForUpdate() {
+        return forUpdate;
+    }
+
+    public void setForUpdate(boolean forUpdate) {
+        this.forUpdate = forUpdate;
+    }
+    
+    public boolean isNoWait() {
+        return noWait;
+    }
+
+    public void setNoWait(boolean noWait) {
+        this.noWait = noWait;
+    }
+    
+    public SQLExpr getWaitTime() {
+        return waitTime;
+    }
+    
+    public void setWaitTime(SQLExpr waitTime) {
+        if (waitTime != null) {
+            waitTime.setParent(this);
+        }
+        this.waitTime = waitTime;
+    }
+
+    public SQLLimit getLimit() {
+        return limit;
+    }
+
+    public void setLimit(SQLLimit limit) {
+        if (limit != null) {
+            limit.setParent(this);
+        }
+        this.limit = limit;
+    }
+
+    public SQLExpr getFirst() {
+        if (limit == null) {
+            return null;
+        }
+
+        return limit.getRowCount();
+    }
+
+    public void setFirst(SQLExpr first) {
+        if (limit == null) {
+            limit = new SQLLimit();
+        }
+        this.limit.setRowCount(first);
+    }
+
+    public SQLExpr getOffset() {
+        if (limit == null) {
+            return null;
+        }
+
+        return limit.getOffset();
+    }
+
+    public void setOffset(SQLExpr offset) {
+        if (limit == null) {
+            limit = new SQLLimit();
+        }
+        this.limit.setOffset(offset);
+    }
 
 	@Override
     protected void accept0(SQLASTVisitor visitor) {

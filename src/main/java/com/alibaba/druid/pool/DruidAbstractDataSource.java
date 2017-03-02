@@ -37,6 +37,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -61,11 +62,7 @@ import com.alibaba.druid.stat.JdbcSqlStat;
 import com.alibaba.druid.stat.JdbcStatManager;
 import com.alibaba.druid.support.logging.Log;
 import com.alibaba.druid.support.logging.LogFactory;
-import com.alibaba.druid.util.DruidPasswordCallback;
-import com.alibaba.druid.util.Histogram;
-import com.alibaba.druid.util.JdbcUtils;
-import com.alibaba.druid.util.StringUtils;
-import com.alibaba.druid.util.Utils;
+import com.alibaba.druid.util.*;
 
 /**
  * @author wenshao [szujobs@hotmail.com]
@@ -247,8 +244,12 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
     private boolean                                    asyncCloseConnectionEnable                = false;
     protected int                                      maxCreateTaskCount                        = 3;
     protected boolean                                  failFast                                  = false;
+    protected AtomicBoolean                            failContinuous                            = new AtomicBoolean(false);
     protected ScheduledExecutorService                 destroyScheduler;
     protected ScheduledExecutorService                 createScheduler;
+
+    protected boolean                                  initVariants                              = false;
+    protected boolean                                  initGlobalVariants                        = false;
 
     public DruidAbstractDataSource(boolean lockFair){
         lock = new ReentrantLock(lockFair);
@@ -598,6 +599,10 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
     }
 
     public void addConnectionProperty(String name, String value) {
+        if (StringUtils.equals(connectProperties.getProperty(name), value)) {
+            return;
+        }
+
         if (inited) {
             throw new UnsupportedOperationException();
         }
@@ -857,6 +862,22 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
         this.userCallback = userCallback;
     }
 
+    public boolean isInitVariants() {
+        return initVariants;
+    }
+
+    public void setInitVariants(boolean initVariants) {
+        this.initVariants = initVariants;
+    }
+
+    public boolean isInitGlobalVariants() {
+        return initGlobalVariants;
+    }
+
+    public void setInitGlobalVariants(boolean initGlobalVariants) {
+        this.initGlobalVariants = initGlobalVariants;
+    }
+
     /**
      * Retrieves the number of seconds the driver will wait for a <code>Statement</code> object to execute. If the limit
      * is exceeded, a <code>SQLException</code> is thrown.
@@ -1001,6 +1022,10 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
     }
 
     public void setUsername(String username) {
+        if (StringUtils.equals(this.username, username)) {
+            return;
+        }
+
         if (inited) {
             throw new UnsupportedOperationException();
         }
@@ -1065,6 +1090,10 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
     }
 
     public void setUrl(String jdbcUrl) {
+        if (StringUtils.equals(this.jdbcUrl, jdbcUrl)) {
+            return;
+        }
+
         if (inited) {
             throw new UnsupportedOperationException();
         }
@@ -1085,7 +1114,15 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
     }
 
     public void setDriverClassName(String driverClass) {
+        if (driverClass != null && driverClass.length() > 256) {
+            throw new IllegalArgumentException("driverClassName length > 256.");
+        }
+
         if (inited) {
+            if (StringUtils.equals(this.driverClass, driverClass)) {
+                return;
+            }
+            
             throw new UnsupportedOperationException();
         }
 
@@ -1245,8 +1282,19 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
         }
 
         if (validConnectionChecker != null) {
-            if (!validConnectionChecker.isValidConnection(conn, validationQuery, validationQueryTimeout)) {
-                throw new SQLException("validateConnection false");
+            boolean result = true;
+            Exception error = null;
+            try {
+                result = validConnectionChecker.isValidConnection(conn, validationQuery, validationQueryTimeout);
+            } catch (Exception ex) {
+                error = ex;
+            }
+            
+            if (!result) {
+                SQLException sqlError = error != null ? //
+                    new SQLException("validateConnection false", error) //
+                    : new SQLException("validateConnection false");
+                throw sqlError;
             }
             return;
         }
@@ -1456,10 +1504,18 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
             physicalConnectProperties.put("password", password);
         }
 
-        Connection conn;
+        Connection conn = null;
 
         long connectStartNanos = System.nanoTime();
         long connectedNanos, initedNanos, validatedNanos;
+
+        Map<String, Object> variables = initVariants
+                ? new HashMap<String, Object>()
+                : null;
+        Map<String, Object> globalVariables = initGlobalVariants
+                ? new HashMap<String, Object>()
+                : null;
+
         try {
             conn = createPhysicalConnection(url, physicalConnectProperties);
             connectedNanos = System.nanoTime();
@@ -1468,7 +1524,7 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
                 throw new SQLException("connect error, url " + url + ", driverClass " + this.driverClass);
             }
 
-            initPhysicalConnection(conn);
+            initPhysicalConnection(conn, variables, globalVariables);
             initedNanos = System.nanoTime();
 
             validateConnection(conn);
@@ -1477,19 +1533,23 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
             setCreateError(null);
         } catch (SQLException ex) {
             setCreateError(ex);
+            JdbcUtils.close(conn);
             throw ex;
         } catch (RuntimeException ex) {
             setCreateError(ex);
+            JdbcUtils.close(conn);
             throw ex;
         } catch (Error ex) {
             createErrorCount.incrementAndGet();
+            setCreateError(ex);
+            JdbcUtils.close(conn);
             throw ex;
         } finally {
             long nano = System.nanoTime() - connectStartNanos;
             createTimespan += nano;
         }
 
-        return new PhysicalConnectionInfo(conn, connectStartNanos, connectedNanos, initedNanos, validatedNanos);
+        return new PhysicalConnectionInfo(conn, connectStartNanos, connectedNanos, initedNanos, validatedNanos, variables, globalVariables);
     }
 
     protected void setCreateError(Throwable ex) {
@@ -1516,8 +1576,16 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
             lock.unlock();
         }
     }
+    
+    protected void setFailContinuous(boolean fail) {
+        failContinuous.set(fail);
+    }
 
     public void initPhysicalConnection(Connection conn) throws SQLException {
+        initPhysicalConnection(conn, null, null);
+    }
+
+    public void initPhysicalConnection(Connection conn, Map<String, Object> variables, Map<String, Object> globalVariables) throws SQLException {
         if (conn.getAutoCommit() != defaultAutoCommit) {
             conn.setAutoCommit(defaultAutoCommit);
         }
@@ -1539,19 +1607,52 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
         }
 
         Collection<String> initSqls = getConnectionInitSqls();
-        if (initSqls.size() == 0) {
+        if (initSqls.size() == 0
+                && variables == null
+                && globalVariables == null) {
             return;
         }
 
         Statement stmt = null;
         try {
             stmt = conn.createStatement();
+
             for (String sql : initSqls) {
                 if (sql == null) {
                     continue;
                 }
 
                 stmt.execute(sql);
+            }
+
+            if (JdbcConstants.MYSQL.equals(dbType)) {
+                if (variables != null) {
+                    ResultSet rs = null;
+                    try {
+                        rs = stmt.executeQuery("show variables");
+                        while (rs.next()) {
+                            String name = rs.getString(1);
+                            Object value = rs.getObject(2);
+                            variables.put(name, value);
+                        }
+                    } finally {
+                        JdbcUtils.close(rs);
+                    }
+                }
+
+                if (globalVariables != null) {
+                    ResultSet rs = null;
+                    try {
+                        rs = stmt.executeQuery("show global variables");
+                        while (rs.next()) {
+                            String name = rs.getString(1);
+                            Object value = rs.getObject(2);
+                            globalVariables.put(name, value);
+                        }
+                    } finally {
+                        JdbcUtils.close(rs);
+                    }
+                }
             }
         } finally {
             JdbcUtils.close(stmt);
@@ -1682,7 +1783,7 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
         decrementCachedPreparedStatementCount();
         incrementCachedPreparedStatementDeleteCount();
 
-        JdbcUtils.close(stmtHolder.getStatement());
+        JdbcUtils.close(stmtHolder.statement);
     }
 
     protected void cloneTo(DruidAbstractDataSource to) {
@@ -1813,18 +1914,32 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
         private long connectedNanos;
         private long initedNanos;
         private long validatedNanos;
+        private Map<String, Object> vairiables;
+        private Map<String, Object> globalVairiables;
+
+        public PhysicalConnectionInfo(Connection connection //
+                , long connectStartNanos //
+                , long connectedNanos //
+                , long initedNanos //
+                , long validatedNanos) {
+            this(connection, connectStartNanos, connectedNanos, initedNanos,validatedNanos, null, null);
+        }
         
         public PhysicalConnectionInfo(Connection connection //
                                       , long connectStartNanos //
                                       , long connectedNanos //
                                       , long initedNanos //
-                                      , long validatedNanos) {
+                                      , long validatedNanos
+                                      , Map<String, Object> vairiables
+                                      , Map<String, Object> globalVairiables) {
             this.connection = connection;
             
             this.connectStartNanos = connectStartNanos;
             this.connectedNanos = connectedNanos;
             this.initedNanos = initedNanos;
             this.validatedNanos = validatedNanos;
+            this.vairiables = vairiables;
+            this.globalVairiables = globalVairiables;
         }
         
         public Connection getPhysicalConnection() {
@@ -1849,6 +1964,14 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
         
         public long getConnectNanoSpan() {
             return connectedNanos - connectStartNanos;
+        }
+
+        public Map<String, Object> getVairiables() {
+            return vairiables;
+        }
+
+        public Map<String, Object> getGlobalVairiables() {
+            return globalVairiables;
         }
     }
 }

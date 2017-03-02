@@ -16,6 +16,7 @@
 package com.alibaba.druid.pool;
 
 import com.alibaba.druid.pool.DruidAbstractDataSource.PhysicalConnectionInfo;
+import com.alibaba.druid.proxy.jdbc.WrapperProxy;
 import com.alibaba.druid.support.logging.Log;
 import com.alibaba.druid.support.logging.LogFactory;
 import com.alibaba.druid.util.JdbcConstants;
@@ -32,6 +33,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -42,12 +44,14 @@ public final class DruidConnectionHolder {
     private final static Log                    LOG                      = LogFactory.getLog(DruidConnectionHolder.class);
 
     private final DruidAbstractDataSource       dataSource;
+    private final long                          connectionId;
     private final Connection                    conn;
     private final List<ConnectionEventListener> connectionEventListeners = new CopyOnWriteArrayList<ConnectionEventListener>();
     private final List<StatementEventListener>  statementEventListeners  = new CopyOnWriteArrayList<StatementEventListener>();
-    private final long                          connectTimeMillis;
-    private transient long                      lastActiveTimeMillis;
+    protected final long                        connectTimeMillis;
+    protected transient long                    lastActiveTimeMillis;
     private long                                useCount                 = 0;
+    private long                                keepAliveCheckCount      = 0;
     
     private long                                lastNotEmptyWaitNanos;
     
@@ -68,27 +72,51 @@ public final class DruidConnectionHolder {
     private int                                 underlyingTransactionIsolation;
     private boolean                             underlyingAutoCommit;
     private boolean                             discard                  = false;
+
+    protected final Map<String, Object>         variables;
+    protected final Map<String, Object>         globleVariables;
     
     public static boolean                       holdabilityUnsupported   = false;
     
     public DruidConnectionHolder(DruidAbstractDataSource dataSource, PhysicalConnectionInfo pyConnectInfo) throws SQLException {
-        this(dataSource, pyConnectInfo.getPhysicalConnection(), pyConnectInfo.getConnectNanoSpan());
+        this(dataSource
+                , pyConnectInfo.getPhysicalConnection()
+                , pyConnectInfo.getConnectNanoSpan()
+                , pyConnectInfo.getVairiables()
+                , pyConnectInfo.getGlobalVairiables());
     }
 
     public DruidConnectionHolder(DruidAbstractDataSource dataSource, Connection conn, long connectNanoSpan) throws SQLException{
+        this(dataSource, conn, connectNanoSpan, null, null);
+    }
 
+    public DruidConnectionHolder(DruidAbstractDataSource dataSource
+            , Connection conn
+            , long connectNanoSpan
+            , Map<String, Object> variables
+            , Map<String, Object> globleVariables) throws SQLException{
         this.dataSource = dataSource;
         this.conn = conn;
         this.createNanoSpan = connectNanoSpan;
+        this.variables = variables;
+        this.globleVariables = globleVariables;
+
         this.connectTimeMillis = System.currentTimeMillis();
         this.lastActiveTimeMillis = connectTimeMillis;
 
         this.underlyingAutoCommit = conn.getAutoCommit();
 
+        if (conn instanceof WrapperProxy) {
+            this.connectionId = ((WrapperProxy) conn).getId();
+        } else {
+            this.connectionId = dataSource.createConnectionId();
+        }
+
         {
             boolean initUnderlyHoldability = !holdabilityUnsupported;
-            if (JdbcConstants.SYBASE.equals(dataSource.getDbType()) //
-                || JdbcConstants.DB2.equals(dataSource.getDbType()) //
+            if (JdbcConstants.SYBASE.equals(dataSource.dbType) //
+                || JdbcConstants.DB2.equals(dataSource.dbType) //
+                || JdbcConstants.HIVE.equals(dataSource.dbType) //
             ) {
                 initUnderlyHoldability = false;
             }
@@ -221,8 +249,20 @@ public final class DruidConnectionHolder {
         return useCount;
     }
 
+    public long getConnectionId() {
+        return connectionId;
+    }
+
     public void incrementUseCount() {
         useCount++;
+    }
+
+    public long getKeepAliveCheckCount() {
+        return keepAliveCheckCount;
+    }
+
+    public void incrementKeepAliveCheckCount() {
+        keepAliveCheckCount++;
     }
 
     public void reset() throws SQLException {

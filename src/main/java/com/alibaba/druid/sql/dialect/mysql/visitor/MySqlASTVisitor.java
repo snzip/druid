@@ -25,6 +25,8 @@ import com.alibaba.druid.sql.dialect.mysql.ast.MysqlForeignKey;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlCaseStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlCaseStatement.MySqlWhenStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlCursorDeclareStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlDeclareConditionStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlDeclareHandlerStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlDeclareStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlIterateStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlLeaveStatement;
@@ -116,7 +118,7 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowTableStatusSta
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowTriggersStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowVariantsStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowWarningsStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlStartTransactionStatement;
+import com.alibaba.druid.sql.ast.statement.SQLStartTransactionStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSubPartitionByKey;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSubPartitionByList;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlTableIndex;
@@ -124,13 +126,10 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnionQuery;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnlockTablesStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateTableSource;
+import com.alibaba.druid.sql.dialect.mysql.ast.statement.MysqlDeallocatePrepareStatement;
 import com.alibaba.druid.sql.visitor.SQLASTVisitor;
 
 public interface MySqlASTVisitor extends SQLASTVisitor {
-    boolean visit(MySqlSelectQueryBlock.Limit x);
-
-    void endVisit(MySqlSelectQueryBlock.Limit x);
-
     boolean visit(MySqlTableIndex x);
 
     void endVisit(MySqlTableIndex x);
@@ -168,6 +167,10 @@ public interface MySqlASTVisitor extends SQLASTVisitor {
     boolean visit(MySqlPrepareStatement x);
 
     void endVisit(MySqlExecuteStatement x);
+    
+    boolean visit(MysqlDeallocatePrepareStatement x);
+    
+    void endVisit(MysqlDeallocatePrepareStatement x);
 
     boolean visit(MySqlExecuteStatement x);
 
@@ -190,10 +193,6 @@ public interface MySqlASTVisitor extends SQLASTVisitor {
     void endVisit(MySqlReplaceStatement x);
 
     boolean visit(MySqlReplaceStatement x);
-
-    void endVisit(MySqlStartTransactionStatement x);
-
-    boolean visit(MySqlStartTransactionStatement x);
 
     void endVisit(MySqlCommitStatement x);
 
@@ -581,5 +580,13 @@ public interface MySqlASTVisitor extends SQLASTVisitor {
     boolean visit(MySqlSubPartitionByList x);
     
     void endVisit(MySqlSubPartitionByList x);
+    
+    boolean visit(MySqlDeclareHandlerStatement x);
+
+    void endVisit(MySqlDeclareHandlerStatement x);
+    
+    boolean visit(MySqlDeclareConditionStatement x);
+
+    void endVisit(MySqlDeclareConditionStatement x);
 
 } //

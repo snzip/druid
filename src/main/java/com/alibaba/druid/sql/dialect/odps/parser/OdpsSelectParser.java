@@ -16,14 +16,17 @@
 package com.alibaba.druid.sql.dialect.odps.parser;
 
 import com.alibaba.druid.sql.ast.SQLExpr;
+import com.alibaba.druid.sql.ast.SQLLimit;
 import com.alibaba.druid.sql.ast.SQLOrderingSpecification;
 import com.alibaba.druid.sql.ast.SQLSetQuantifier;
+import com.alibaba.druid.sql.ast.expr.SQLListExpr;
 import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
 import com.alibaba.druid.sql.ast.statement.SQLSelectOrderByItem;
 import com.alibaba.druid.sql.ast.statement.SQLSelectQuery;
 import com.alibaba.druid.sql.ast.statement.SQLTableSource;
 import com.alibaba.druid.sql.dialect.odps.ast.OdpsLateralViewTableSource;
 import com.alibaba.druid.sql.dialect.odps.ast.OdpsSelectQueryBlock;
+import com.alibaba.druid.sql.dialect.odps.ast.OdpsValuesTableSource;
 import com.alibaba.druid.sql.parser.SQLExprParser;
 import com.alibaba.druid.sql.parser.SQLSelectParser;
 import com.alibaba.druid.sql.parser.Token;
@@ -85,9 +88,7 @@ public class OdpsSelectParser extends SQLSelectParser {
         if (lexer.token() == Token.DISTRIBUTE) {
             lexer.nextToken();
             accept(Token.BY);
-            SQLExpr distributeBy = this.expr();
-            queryBlock.setDistributeBy(distributeBy);
-            
+            this.exprParser.exprList(queryBlock.getDistributeBy(), queryBlock);
 
             if (identifierEquals("SORT")) {
                 lexer.nextToken();
@@ -119,10 +120,45 @@ public class OdpsSelectParser extends SQLSelectParser {
 
         if (lexer.token() == Token.LIMIT) {
             lexer.nextToken();
-            queryBlock.setLimit(this.expr());
+            queryBlock.setLimit(new SQLLimit(this.expr()));
         }
 
         return queryRest(queryBlock);
+    }
+
+    public SQLTableSource parseTableSource() {
+        if (lexer.token() == Token.VALUES) {
+            lexer.nextToken();
+            OdpsValuesTableSource tableSource = new OdpsValuesTableSource();
+
+            for (;;) {
+                accept(Token.LPAREN);
+                SQLListExpr listExpr = new SQLListExpr();
+                this.exprParser.exprList(listExpr.getItems(), listExpr);
+                accept(Token.RPAREN);
+
+                listExpr.setParent(tableSource);
+
+                tableSource.getValues().add(listExpr);
+
+                if (lexer.token() == Token.COMMA) {
+                    lexer.nextToken();
+                    continue;
+                }
+                break;
+            }
+
+            String alias = this.as();
+            tableSource.setAlias(alias);
+
+            accept(Token.LPAREN);
+            this.exprParser.names(tableSource.getColumns(), tableSource);
+            accept(Token.RPAREN);
+
+            return tableSource;
+        }
+
+        return super.parseTableSource();
     }
     
     protected SQLTableSource parseTableSourceRest(SQLTableSource tableSource) {

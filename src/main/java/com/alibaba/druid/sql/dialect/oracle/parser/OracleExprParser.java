@@ -36,6 +36,7 @@ import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
 import com.alibaba.druid.sql.ast.expr.SQLNumberExpr;
 import com.alibaba.druid.sql.ast.expr.SQLNumericLiteralExpr;
 import com.alibaba.druid.sql.ast.expr.SQLPropertyExpr;
+import com.alibaba.druid.sql.ast.expr.SQLSequenceExpr;
 import com.alibaba.druid.sql.ast.expr.SQLTimestampExpr;
 import com.alibaba.druid.sql.ast.expr.SQLUnaryExpr;
 import com.alibaba.druid.sql.ast.expr.SQLUnaryOperator;
@@ -58,11 +59,8 @@ import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleArgumentExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleBinaryDoubleExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleBinaryFloatExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleCursorExpr;
-import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDateExpr;
-import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDateTimeUnit;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDatetimeExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDbLinkExpr;
-import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleExtractExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleIntervalExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleIntervalType;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleIsSetExpr;
@@ -324,22 +322,6 @@ public class OracleExprParser extends SQLExprParser {
                 String alias = '"' + lexer.stringVal() + '"';
                 lexer.nextToken();
                 return primaryRest(new SQLIdentifierExpr(alias));
-            case EXTRACT:
-                lexer.nextToken();
-                OracleExtractExpr extract = new OracleExtractExpr();
-
-                accept(Token.LPAREN);
-
-                extract.setUnit(OracleDateTimeUnit.valueOf(lexer.stringVal().toUpperCase()));
-                lexer.nextToken();
-
-                accept(Token.FROM);
-
-                extract.setFrom(expr());
-
-                accept(Token.RPAREN);
-
-                return primaryRest(extract);
             case BINARY_FLOAT:
                 OracleBinaryFloatExpr floatExpr = new OracleBinaryFloatExpr();
                 floatExpr.setValue(Float.parseFloat(lexer.numberString()));
@@ -507,9 +489,17 @@ public class OracleExprParser extends SQLExprParser {
                     methodExpr.putAttribute("trim_option", lexer.stringVal());
                     lexer.nextToken();
                 }
-                SQLExpr trim_character = this.primary();
-                trim_character.setParent(methodExpr);
-                methodExpr.putAttribute("trim_character", trim_character);
+                
+                if (lexer.token() != Token.FROM) {
+                    SQLExpr trim_character = this.primary();
+                    trim_character.setParent(methodExpr);
+                    if (trim_character instanceof SQLCharExpr) {
+                        methodExpr.putAttribute("trim_character", trim_character);
+                    } else {
+                        methodExpr.getParameters().add(trim_character);
+                    }
+                }
+                
                 if (lexer.token() == Token.FROM) {
                     lexer.nextToken();
                     SQLExpr trim_source = this.expr();
@@ -527,17 +517,6 @@ public class OracleExprParser extends SQLExprParser {
     public SQLExpr primaryRest(SQLExpr expr) {
         if (expr.getClass() == SQLIdentifierExpr.class) {
             String ident = ((SQLIdentifierExpr)expr).getName();
-            
-            if ("DATE".equalsIgnoreCase(ident)) {
-                OracleDateExpr timestamp = new OracleDateExpr();
-
-                String literal = lexer.stringVal();
-                timestamp.setLiteral(literal);
-                accept(Token.LITERAL_CHARS);
-                
-                return primaryRest(timestamp);     
-            }
-            
             if ("TIMESTAMP".equalsIgnoreCase(ident)) {
                 if (lexer.token() != Token.LITERAL_ALIAS && lexer.token() != Token.LITERAL_CHARS) {
                     return new SQLIdentifierExpr("TIMESTAMP");
@@ -716,6 +695,22 @@ public class OracleExprParser extends SQLExprParser {
             }
 
             return expr;
+        }
+        
+        if (identifierEquals("NEXTVAL")) {
+            if (expr instanceof SQLIdentifierExpr) {
+                SQLIdentifierExpr identExpr = (SQLIdentifierExpr) expr;
+                SQLSequenceExpr seqExpr = new SQLSequenceExpr(identExpr, SQLSequenceExpr.Function.NextVal);
+                lexer.nextToken();
+                return seqExpr;
+            }
+        } else if (identifierEquals("CURRVAL")) {
+            if (expr instanceof SQLIdentifierExpr) {
+                SQLIdentifierExpr identExpr = (SQLIdentifierExpr) expr;
+                SQLSequenceExpr seqExpr = new SQLSequenceExpr(identExpr, SQLSequenceExpr.Function.CurrVal);
+                lexer.nextToken();
+                return seqExpr;
+            }
         }
 
         return super.dotRest(expr);

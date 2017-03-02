@@ -138,6 +138,11 @@ public enum Token {
     CLOSE("CLOSE"),
     OUT("OUT"),
     INOUT("INOUT"),
+    EXIT("EXIT"),
+    UNDO("UNDO"),
+    SQLSTATE("SQLSTATE"),
+    CONDITION("CONDITION"),
+    DIV("DIV"),
     
     //postgresql
     WINDOW("WINDOW"),
@@ -165,8 +170,9 @@ public enum Token {
     RETURNING("RETURNING"),
     COMMENT("COMMENT"),
     OVER("OVER"),
-    TYPE("TYPE"), 
-    
+    TYPE("TYPE"),
+    ILIKE("ILIKE"),
+
     // oracle
     START("START"),
     PRIOR("PRIOR"),
@@ -271,6 +277,12 @@ public enum Token {
     POSITION("POSITION"),
     RANGE_N("RANGE_N"),
     FORMAT("FORMAT"),
+    QUALIFY("QUALIFY"),
+    MOD("MOD"),
+    
+    CONCAT("CONCAT"), // DB2
+
+    UPSERT("UPSERT"), // Phoenix
 
     LPAREN("("), 
     RPAREN(")"), 
@@ -288,10 +300,17 @@ public enum Token {
     LT("<"), 
     BANG("!"),
     BANGBANG("!!"),
-    TILDE("~"), 
-    QUES("?"), 
+    BANG_TILDE("!~"),
+    BANG_TILDE_STAR("!~*"),
+    TILDE("~"),
+    TILDE_STAR("~*"),
+    TILDE_EQ("~="),
+    QUES("?"),
+    QUESQUES("??"),
+    QUESBAR("?|"),
+    QUESAMP("?&"),
     COLON(":"), 
-    COLONCOLON(":"), 
+    COLONCOLON("::"), 
     COLONEQ(":="), 
     EQEQ("=="), 
     LTEQ("<="), 
@@ -307,6 +326,8 @@ public enum Token {
     BARSLASH("|/"), 
     PLUS("+"), 
     SUB("-"), 
+    SUBGT("->"), 
+    SUBGTGT("->>"), 
     STAR("*"), 
     SLASH("/"), 
     AMP("&"), 
@@ -316,7 +337,12 @@ public enum Token {
     LTLT("<<"), 
     GTGT(">>"),
     MONKEYS_AT("@"),
-    POUND("#")
+    MONKEYS_AT_AT("@@"),
+    POUND("#"),
+    POUNDGT("#>"),
+    POUNDGTGT("#>>"),
+    MONKEYS_AT_GT("@>"),
+    LT_MONKEYS_AT("<@"),
     ;
 
     public final String name;

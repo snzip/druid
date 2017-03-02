@@ -51,6 +51,9 @@ public class MySqlExceptionSorter implements ExceptionSorter {
                 // Out-of-memory errors
             case 1037: // ER_OUTOFMEMORY
             case 1038: // ER_OUT_OF_SORTMEMORY
+                // Access denied
+            case 1142: // ER_TABLEACCESS_DENIED_ERROR
+            case 1227: // ER_SPECIFIC_ACCESS_DENIED_ERROR
                 return true;
             default:
                 break;
@@ -62,12 +65,18 @@ public class MySqlExceptionSorter implements ExceptionSorter {
         }
         
         String className = e.getClass().getName();
-        if ("com.mysql.jdbc.CommunicationsException".equals(className)) {
+        if ("com.mysql.jdbc.CommunicationsException".equals(className)
+                || "com.mysql.jdbc.exceptions.jdbc4.CommunicationsException".equals(className)) {
             return true;
         }
 
         String message = e.getMessage();
         if (message != null && message.length() > 0) {
+            if (message.startsWith("Streaming result set com.mysql.jdbc.RowDataDynamic")
+                    && message.endsWith("is still active. No statements may be issued when any streaming result sets are open and in use on a given connection. Ensure that you have called .close() on any active streaming result sets before attempting more queries.")) {
+                return true;
+            }
+            
             final String errorText = message.toUpperCase();
 
             if ((errorCode == 0 && (errorText.contains("COMMUNICATIONS LINK FAILURE")) //
@@ -77,6 +86,8 @@ public class MySqlExceptionSorter implements ExceptionSorter {
                 return true;
             }
         }
+        
+        
         return false;
     }
 

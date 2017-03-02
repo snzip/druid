@@ -35,12 +35,11 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
 import com.alibaba.druid.sql.builder.SQLSelectBuilder;
 import com.alibaba.druid.sql.dialect.db2.ast.stmt.DB2SelectQueryBlock;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock.Limit;
+import com.alibaba.druid.sql.ast.SQLLimit;
 import com.alibaba.druid.sql.dialect.odps.ast.OdpsSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelect;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.postgresql.ast.stmt.PGSelectQueryBlock;
-import com.alibaba.druid.sql.dialect.postgresql.ast.stmt.PGSelectQueryBlock.PGLimit;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.SQLServerSelect;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.SQLServerSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.SQLServerTop;
@@ -230,7 +229,7 @@ public class SQLSelectBuilderImpl implements SQLSelectBuilder {
         if (queryBlock instanceof MySqlSelectQueryBlock) {
             MySqlSelectQueryBlock mySqlQueryBlock = (MySqlSelectQueryBlock) queryBlock;
 
-            Limit limit = new Limit();
+            SQLLimit limit = new SQLLimit();
             limit.setRowCount(new SQLIntegerExpr(rowCount));
             if (offset > 0) {
                 limit.setOffset(new SQLIntegerExpr(offset));
@@ -256,7 +255,7 @@ public class SQLSelectBuilderImpl implements SQLSelectBuilder {
 
         if (queryBlock instanceof PGSelectQueryBlock) {
             PGSelectQueryBlock pgQueryBlock = (PGSelectQueryBlock) queryBlock;
-            PGLimit limit = new PGLimit();
+            SQLLimit limit = new SQLLimit();
             if (offset > 0) {
                 limit.setOffset(new SQLIntegerExpr(offset));
             }
@@ -299,7 +298,7 @@ public class SQLSelectBuilderImpl implements SQLSelectBuilder {
                 throw new UnsupportedOperationException("not support offset");
             }
 
-            odpsQueryBlock.setLimit(new SQLIntegerExpr(rowCount));
+            odpsQueryBlock.setLimit(new SQLLimit(new SQLIntegerExpr(rowCount)));
 
             return this;
         }

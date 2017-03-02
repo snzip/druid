@@ -37,59 +37,18 @@ import com.alibaba.druid.sql.ast.expr.SQLLiteralExpr;
 import com.alibaba.druid.sql.ast.expr.SQLNCharExpr;
 import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
 import com.alibaba.druid.sql.ast.expr.SQLVariantRefExpr;
-import com.alibaba.druid.sql.ast.statement.SQLAlterDatabaseStatement;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableAddColumn;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableAddConstraint;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableAddIndex;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableAddPartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableAnalyzePartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableCheckPartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableCoalescePartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableConvertCharSet;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDisableConstraint;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDisableKeys;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDiscardPartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDropColumnItem;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDropConstraint;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDropForeignKey;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDropIndex;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDropKey;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDropPartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableDropPrimaryKey;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableEnableConstraint;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableEnableKeys;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableImportPartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableOptimizePartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableReOrganizePartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableRebuildPartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableRepairPartition;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableStatement;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableTruncatePartition;
-import com.alibaba.druid.sql.ast.statement.SQLBlockStatement;
-import com.alibaba.druid.sql.ast.statement.SQLColumnDefinition;
-import com.alibaba.druid.sql.ast.statement.SQLCreateDatabaseStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCreateIndexStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCreateProcedureStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCreateTableStatement;
-import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLIfStatement;
-import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
+import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement.ValuesClause;
-import com.alibaba.druid.sql.ast.statement.SQLLoopStatement;
-import com.alibaba.druid.sql.ast.statement.SQLPrimaryKey;
-import com.alibaba.druid.sql.ast.statement.SQLSelect;
-import com.alibaba.druid.sql.ast.statement.SQLSelectOrderByItem;
-import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
-import com.alibaba.druid.sql.ast.statement.SQLSetStatement;
-import com.alibaba.druid.sql.ast.statement.SQLShowTablesStatement;
-import com.alibaba.druid.sql.ast.statement.SQLTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLUpdateSetItem;
-import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.MysqlForeignKey;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.ConditionValue;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.ConditionValue.ConditionType;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlCaseStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlCaseStatement.MySqlWhenStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlCursorDeclareStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlDeclareConditionStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlDeclareHandlerStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlDeclareStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlHandlerType;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlIterateStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlLeaveStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlRepeatStatement;
@@ -126,7 +85,7 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlRenameTableStateme
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlReplaceStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlResetStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlRollbackStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock.Limit;
+import com.alibaba.druid.sql.ast.SQLLimit;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetCharSetStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetNamesStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetPasswordStatement;
@@ -173,9 +132,9 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowTableStatusSta
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowTriggersStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowVariantsStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowWarningsStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlStartTransactionStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnlockTablesStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.statement.MysqlDeallocatePrepareStatement;
 import com.alibaba.druid.sql.parser.Lexer;
 import com.alibaba.druid.sql.parser.ParserException;
 import com.alibaba.druid.sql.parser.SQLSelectParser;
@@ -211,6 +170,8 @@ public class MySqlStatementParser extends SQLStatementParser {
     private static final String DELAYED        = "DELAYED";
     private static final String LOW_PRIORITY   = "LOW_PRIORITY";
 
+    private int maxIntoClause = -1;
+
     public MySqlStatementParser(String sql){
         super(new MySqlExprParser(sql));
     }
@@ -219,48 +180,33 @@ public class MySqlStatementParser extends SQLStatementParser {
         super(new MySqlExprParser(lexer));
     }
 
+    public int getMaxIntoClause() {
+        return maxIntoClause;
+    }
+
+    public void setMaxIntoClause(int maxIntoClause) {
+        this.maxIntoClause = maxIntoClause;
+    }
+
     public SQLCreateTableStatement parseCreateTable() {
         MySqlCreateTableParser parser = new MySqlCreateTableParser(this.exprParser);
         return parser.parseCrateTable();
     }
 
-    public SQLSelectStatement parseSelect() {
+    public SQLStatement parseSelect() {
         MySqlSelectParser selectParser = new MySqlSelectParser(this.exprParser);
-        return new SQLSelectStatement(selectParser.select(), JdbcConstants.MYSQL);
+        
+        SQLSelect select = selectParser.select();
+        
+        if (selectParser.returningFlag) {
+            return selectParser.updateStmt;
+        }
+        
+        return new SQLSelectStatement(select, JdbcConstants.MYSQL);
     }
 
     public SQLUpdateStatement parseUpdateStatement() {
-        MySqlUpdateStatement stmt = createUpdateStatement();
-
-        if (lexer.token() == Token.UPDATE) {
-            lexer.nextToken();
-
-            if (identifierEquals(LOW_PRIORITY)) {
-                lexer.nextToken();
-                stmt.setLowPriority(true);
-            }
-
-            if (identifierEquals(IGNORE)) {
-                lexer.nextToken();
-                stmt.setIgnore(true);
-            }
-
-            SQLTableSource tableSource = this.exprParser.createSelectParser().parseTableSource();
-            stmt.setTableSource(tableSource);
-        }
-
-        parseUpdateSet(stmt);
-
-        if (lexer.token() == (Token.WHERE)) {
-            lexer.nextToken();
-            stmt.setWhere(this.exprParser.expr());
-        }
-
-        stmt.setOrderBy(this.exprParser.parseOrderBy());
-
-        stmt.setLimit(parseLimit());
-
-        return stmt;
+        return new MySqlSelectParser(this.exprParser).parseUpdateStatment();
     }
 
     protected MySqlUpdateStatement createUpdateStatement() {
@@ -330,7 +276,7 @@ public class MySqlStatementParser extends SQLStatementParser {
             deleteStatement.setOrderBy(orderBy);
         }
 
-        deleteStatement.setLimit(parseLimit());
+        deleteStatement.setLimit(this.exprParser.parseLimit());
 
         return deleteStatement;
     }
@@ -382,7 +328,8 @@ public class MySqlStatementParser extends SQLStatementParser {
             return parseCreateUser();
         }
 
-        if (lexer.token() == Token.VIEW) {
+        if (lexer.token() == Token.VIEW
+                || identifierEquals("ALGORITHM")) {
             if (replace) {
                 lexer.reset(markBp, markChar, Token.CREATE);
             }
@@ -404,7 +351,7 @@ public class MySqlStatementParser extends SQLStatementParser {
             return parseCreateProcedure();
         }
 
-        throw new ParserException("TODO " + lexer.token());
+        throw new ParserException("TODO " + lexer.info());
     }
 
     public SQLStatement parseCreateIndex(boolean acceptCreate) {
@@ -526,13 +473,13 @@ public class MySqlStatementParser extends SQLStatementParser {
         } else if (identifierEquals("QUERY")) {
             stmt.setType(MySqlKillStatement.Type.QUERY);
             lexer.nextToken();
+        } else if (lexer.token() == Token.LITERAL_INT) {
+            // skip
         } else {
             throw new ParserException("not support kill type " + lexer.token());
         }
 
-        SQLExpr threadId = this.exprParser.expr();
-        stmt.setThreadId(threadId);
-
+        this.exprParser.exprList(stmt.getThreadIds(), stmt);
         return stmt;
     }
 
@@ -620,6 +567,12 @@ public class MySqlStatementParser extends SQLStatementParser {
             statementList.add(stmt);
             return true;
         }
+        
+        if(identifierEquals("DEALLOCATE")) {
+        	MysqlDeallocatePrepareStatement stmt = parseDeallocatePrepare();
+        	statementList.add(stmt);
+        	return true;
+        }
 
         if (identifierEquals("LOAD")) {
             SQLStatement stmt = parseLoad();
@@ -634,7 +587,7 @@ public class MySqlStatementParser extends SQLStatementParser {
         }
 
         if (identifierEquals("START")) {
-            MySqlStartTransactionStatement stmt = parseStart();
+            SQLStartTransactionStatement stmt = parseStart();
             statementList.add(stmt);
             return true;
         }
@@ -685,8 +638,16 @@ public class MySqlStatementParser extends SQLStatementParser {
 
         if (lexer.token() == Token.LOCK) {
             lexer.nextToken();
-            acceptIdentifier(TABLES);
-
+            String val = lexer.stringVal();
+            boolean isLockTables = TABLES.equalsIgnoreCase(val) && lexer.token() == Token.IDENTIFIER;
+            boolean isLockTable = "TABLE".equalsIgnoreCase(val) && lexer.token() == Token.TABLE;
+            if (isLockTables || isLockTable) {
+            	lexer.nextToken();
+            } else {
+            	setErrorEndPos(lexer.pos());
+                throw new ParserException("syntax error, expect TABLES or TABLE, actual " + lexer.token());
+            }
+            
             MySqlLockTableStatement stmt = new MySqlLockTableStatement();
             stmt.setTableSource(this.exprParser.name());
 
@@ -704,6 +665,8 @@ public class MySqlStatementParser extends SQLStatementParser {
                 lexer.nextToken();
                 acceptIdentifier(WRITE);
                 stmt.setLockType(LockType.LOW_PRIORITY_WRITE);
+            } else {
+            	throw new ParserException("syntax error, expect READ or WRITE, actual " + lexer.token());
             }
 
             if (lexer.token() == Token.HINT) {
@@ -715,8 +678,16 @@ public class MySqlStatementParser extends SQLStatementParser {
 
         if (identifierEquals("UNLOCK")) {
             lexer.nextToken();
-            acceptIdentifier(TABLES);
+            String val = lexer.stringVal();
+            boolean isUnLockTables = TABLES.equalsIgnoreCase(val) && lexer.token() == Token.IDENTIFIER;
+            boolean isUnLockTable = "TABLE".equalsIgnoreCase(val) && lexer.token() == Token.TABLE;
             statementList.add(new MySqlUnlockTablesStatement());
+            if (isUnLockTables || isUnLockTable) {
+            	lexer.nextToken();
+            } else {
+            	setErrorEndPos(lexer.pos());
+                throw new ParserException("syntax error, expect TABLES or TABLE, actual " + lexer.token());
+            }
             return true;
         }
 
@@ -847,7 +818,7 @@ public class MySqlStatementParser extends SQLStatementParser {
             lexer.nextToken();
 
             MySqlShowErrorsStatement stmt = new MySqlShowErrorsStatement();
-            stmt.setLimit(parseLimit());
+            stmt.setLimit(this.exprParser.parseLimit());
 
             return stmt;
         }
@@ -980,7 +951,7 @@ public class MySqlStatementParser extends SQLStatementParser {
                 stmt.setFrom(this.exprParser.expr());
             }
 
-            stmt.setLimit(parseLimit());
+            stmt.setLimit(this.exprParser.parseLimit());
 
             return stmt;
         }
@@ -1323,7 +1294,7 @@ public class MySqlStatementParser extends SQLStatementParser {
                 stmt.setForQuery(this.exprParser.primary());
             }
 
-            stmt.setLimit(this.parseLimit());
+            stmt.setLimit(this.exprParser.parseLimit());
 
             return stmt;
         }
@@ -1343,7 +1314,7 @@ public class MySqlStatementParser extends SQLStatementParser {
                 stmt.setFrom(this.exprParser.primary());
             }
 
-            stmt.setLimit(this.parseLimit());
+            stmt.setLimit(this.exprParser.parseLimit());
 
             return stmt;
         }
@@ -1363,7 +1334,7 @@ public class MySqlStatementParser extends SQLStatementParser {
                 stmt.setFrom(this.exprParser.primary());
             }
 
-            stmt.setLimit(this.parseLimit());
+            stmt.setLimit(this.exprParser.parseLimit());
 
             return stmt;
         }
@@ -1470,7 +1441,7 @@ public class MySqlStatementParser extends SQLStatementParser {
     private MySqlShowWarningsStatement parseShowWarnings() {
         MySqlShowWarningsStatement stmt = new MySqlShowWarningsStatement();
 
-        stmt.setLimit(parseLimit());
+        stmt.setLimit(this.exprParser.parseLimit());
 
         return stmt;
     }
@@ -1547,11 +1518,11 @@ public class MySqlStatementParser extends SQLStatementParser {
         return stmt;
     }
 
-    public MySqlStartTransactionStatement parseStart() {
+    public SQLStartTransactionStatement parseStart() {
         acceptIdentifier("START");
         acceptIdentifier("TRANSACTION");
 
-        MySqlStartTransactionStatement stmt = new MySqlStartTransactionStatement();
+        SQLStartTransactionStatement stmt = new SQLStartTransactionStatement();
 
         if (lexer.token() == Token.WITH) {
             lexer.nextToken();
@@ -1948,30 +1919,55 @@ public class MySqlStatementParser extends SQLStatementParser {
         return stmt;
     }
 
+    public MysqlDeallocatePrepareStatement parseDeallocatePrepare() {
+    	acceptIdentifier("DEALLOCATE");
+    	acceptIdentifier("PREPARE");
+    	
+    	MysqlDeallocatePrepareStatement stmt = new MysqlDeallocatePrepareStatement();
+    	SQLName statementName = exprParser.name();
+    	stmt.setStatementName(statementName);
+    	
+    	return stmt;
+    }
+
     public SQLInsertStatement parseInsert() {
         MySqlInsertStatement insertStatement = new MySqlInsertStatement();
 
         if (lexer.token() == Token.INSERT) {
             lexer.nextToken();
 
-            if (identifierEquals(LOW_PRIORITY)) {
-                insertStatement.setLowPriority(true);
-                lexer.nextToken();
-            }
+            for (;;) {
+                if (identifierEquals(LOW_PRIORITY)) {
+                    insertStatement.setLowPriority(true);
+                    lexer.nextToken();
+                    continue;
+                }
 
-            if (identifierEquals(DELAYED)) {
-                insertStatement.setDelayed(true);
-                lexer.nextToken();
-            }
+                if (identifierEquals(DELAYED)) {
+                    insertStatement.setDelayed(true);
+                    lexer.nextToken();
+                    continue;
+                }
 
-            if (identifierEquals("HIGH_PRIORITY")) {
-                insertStatement.setHighPriority(true);
-                lexer.nextToken();
-            }
+                if (identifierEquals("HIGH_PRIORITY")) {
+                    insertStatement.setHighPriority(true);
+                    lexer.nextToken();
+                    continue;
+                }
 
-            if (identifierEquals(IGNORE)) {
-                insertStatement.setIgnore(true);
-                lexer.nextToken();
+                if (identifierEquals(IGNORE)) {
+                    insertStatement.setIgnore(true);
+                    lexer.nextToken();
+                    continue;
+                }
+
+                if (identifierEquals("ROLLBACK_ON_FAIL")) {
+                    insertStatement.setRollbackOnFail(true);
+                    lexer.nextToken();
+                    continue;
+                }
+                
+                break;
             }
 
             if (lexer.token() == Token.INTO) {
@@ -2054,7 +2050,7 @@ public class MySqlStatementParser extends SQLStatementParser {
     }
 
     private void parseValueClause(List<ValuesClause> valueClauseList, int columnSize) {
-        for (;;) {
+        for (int i = 0;;++i) {
             if (lexer.token() != Token.LPAREN) {
                 throw new ParserException("syntax error, expect ')'");
             }
@@ -2279,10 +2275,6 @@ public class MySqlStatementParser extends SQLStatementParser {
         }
     }
 
-    public Limit parseLimit() {
-        return ((MySqlExprParser) this.exprParser).parseLimit();
-    }
-
     public SQLStatement parseAlter() {
         accept(Token.ALTER);
 
@@ -2375,6 +2367,10 @@ public class MySqlStatementParser extends SQLStatementParser {
                         SQLAlterTableAddConstraint item = new SQLAlterTableAddConstraint(fk);
 
                         stmt.addItem(item);
+                    } else if (lexer.token() == Token.UNIQUE) {
+                        SQLUnique unique = this.exprParser.parseUnique();
+                        SQLAlterTableAddConstraint item = new SQLAlterTableAddConstraint(unique);
+                        stmt.addItem(item);
                     } else {
                         throw new ParserException("TODO " + lexer.token() + " " + lexer.stringVal());
                     }
@@ -2446,23 +2442,43 @@ public class MySqlStatementParser extends SQLStatementParser {
                 stmt.addItem(item);
             } else if (identifierEquals("MODIFY")) {
                 lexer.nextToken();
+                
                 if (lexer.token() == Token.COLUMN) {
                     lexer.nextToken();
                 }
-                MySqlAlterTableModifyColumn item = new MySqlAlterTableModifyColumn();
-                item.setNewColumnDefinition(this.exprParser.parseColumn());
-                if (identifierEquals("AFTER")) {
-                    lexer.nextToken();
-                    item.setAfterColumn(this.exprParser.name());
-                } else if (identifierEquals("FIRST")) {
-                    lexer.nextToken();
-                    if (lexer.token() == Token.IDENTIFIER) {
-                        item.setFirstColumn(this.exprParser.name());
-                    } else {
-                        item.setFirst(true);
-                    }
+                
+                boolean paren = false;
+                if (lexer.token() == Token.LPAREN) {
+                	paren = true;
+                	lexer.nextToken();
                 }
-                stmt.addItem(item);
+                
+                for (;;) {
+					MySqlAlterTableModifyColumn item = new MySqlAlterTableModifyColumn();
+					item.setNewColumnDefinition(this.exprParser.parseColumn());
+					if (identifierEquals("AFTER")) {
+						lexer.nextToken();
+						item.setAfterColumn(this.exprParser.name());
+					} else if (identifierEquals("FIRST")) {
+						lexer.nextToken();
+						if (lexer.token() == Token.IDENTIFIER) {
+							item.setFirstColumn(this.exprParser.name());
+						} else {
+							item.setFirst(true);
+						}
+					}
+					stmt.addItem(item);
+					
+					if (paren && lexer.token() == Token.COMMA) {
+						lexer.nextToken();
+						continue;
+					}
+					break;
+                }
+                
+                if (paren) {
+                	accept(Token.RPAREN);
+                }
             } else if (lexer.token() == Token.DISABLE) {
                 lexer.nextToken();
 
@@ -2729,6 +2745,16 @@ public class MySqlStatementParser extends SQLStatementParser {
                 }
                 stmt.addItem(new MySqlAlterTableOption("COMMENT", '\'' + lexer.stringVal() + '\''));
                 lexer.nextToken();
+            } else if (lexer.token() == Token.UNION) {
+                lexer.nextToken();
+                if (lexer.token() == Token.EQ) {
+                    lexer.nextToken();
+                }
+
+                accept(Token.LPAREN);
+                SQLTableSource tableSrc = this.createSQLSelectParser().parseTableSource();
+                stmt.getTableOptions().put("UNION", tableSrc);
+                accept(Token.RPAREN);
             } else {
                 break;
             }
@@ -2904,16 +2930,35 @@ public class MySqlStatementParser extends SQLStatementParser {
             stmt.setHints(this.exprParser.parseHints());
         }
 
+        if (lexer.token() == Token.DEFAULT) {
+            lexer.nextToken();
+        }
+        
         if (identifierEquals("CHARACTER")) {
             lexer.nextToken();
             accept(Token.SET);
             String charset = lexer.stringVal();
             accept(Token.IDENTIFIER);
             stmt.setCharacterSet(charset);
+        } else if (identifierEquals("CHARSET")) {
+            lexer.nextToken();
+            if (lexer.token() == Token.EQ) {
+                lexer.nextToken();
+            }
+            String charset = lexer.stringVal();
+            accept(Token.IDENTIFIER);
+            stmt.setCharacterSet(charset);
+        }
+        
+        if (lexer.token() == Token.DEFAULT) {
+            lexer.nextToken();
         }
 
         if (identifierEquals("COLLATE")) {
             lexer.nextToken();
+            if (lexer.token() == Token.EQ) {
+                lexer.nextToken();
+            }
             String collate = lexer.stringVal();
             accept(Token.IDENTIFIER);
             stmt.setCollate(collate);
@@ -3247,6 +3292,14 @@ public class MySqlStatementParser extends SQLStatementParser {
                 {
                     lexer.reset(markBp, markChar, Token.DECLARE);
                     statementList.add(this.parseCursorDeclare());
+                } else if (identifierEquals("HANDLER")) {
+                	//DECLARE异常处理程序 [add by zhujun 2016-04-16]
+                	lexer.reset(markBp, markChar, Token.DECLARE);
+                	statementList.add(this.parseDeclareHandler());
+                } else if (lexer.token() == Token.CONDITION) {
+                	//DECLARE异常 [add by zhujun 2016-04-17]
+                	lexer.reset(markBp, markChar, Token.DECLARE);
+                	statementList.add(this.parseDeclareCondition());
                 } else {
                     lexer.reset(markBp, markChar, Token.DECLARE);
                     statementList.add(this.parseDeclare());
@@ -3650,11 +3703,192 @@ public class MySqlStatementParser extends SQLStatementParser {
 
         accept(Token.FOR);
 
-        stmt.setSelect(parseSelect());
+        SQLSelectStatement selelctStmt = (SQLSelectStatement)parseSelect();
+        stmt.setSelect(selelctStmt);
 
         accept(Token.SEMI);
 
         return stmt;
     }
 
+    /**
+     * zhujun [455910092@qq.com]
+     * parse spstatement
+     * @return
+     */
+    public SQLStatement parseSpStatement() {
+    	
+        // update
+        if (lexer.token() == (Token.UPDATE)) {
+            return parseUpdateStatement();
+        }
+
+        // create
+        if (lexer.token() == (Token.CREATE)) {
+            return parseCreate();
+        }
+
+        // insert
+        if (lexer.token() == Token.INSERT) {
+            return parseInsert();
+        }
+
+        // delete
+        if (lexer.token() == (Token.DELETE)) {
+            return parseDeleteStatement();
+        }
+
+        // begin
+        if (lexer.token() == Token.BEGIN) {
+            return this.parseBlock();
+        }
+
+        // select
+        if (lexer.token() == Token.LPAREN) {
+            char ch = lexer.current();
+            int bp = lexer.bp();
+            lexer.nextToken();
+
+            if (lexer.token() == Token.SELECT) {
+                lexer.reset(bp, ch, Token.LPAREN);
+                return this.parseSelect();
+            } else {
+                throw new ParserException("TODO : " + lexer.token() + " " + lexer.stringVal());
+            }
+        }
+        // assign statement
+        if (lexer.token() == Token.SET) {
+            return parseAssign();
+        }
+
+        throw new ParserException("error sp_statement");
+    }
+    
+    /**
+     * 定义异常处理程序
+     * @author zhujun [455910092@qq.com]
+     * 2016-04-16
+     * @return
+     */
+    public MySqlDeclareHandlerStatement parseDeclareHandler() {
+    	//DECLARE handler_type HANDLER FOR condition_value[,...] sp_statement
+    	//handler_type 取值为 CONTINUE | EXIT | UNDO 
+    	//condition_value 取值为 SQLWARNING | NOT FOUND | SQLEXCEPTION | SQLSTATE value(异常码 e.g 1062)
+    	
+    	MySqlDeclareHandlerStatement stmt = new MySqlDeclareHandlerStatement();
+        accept(Token.DECLARE);
+        //String handlerType = exprParser.name().getSimpleName();
+        if(lexer.token() == Token.CONTINUE) {
+        	stmt.setHandleType(MySqlHandlerType.CONTINUE);
+        } else if(lexer.token() == Token.EXIT) {
+        	stmt.setHandleType(MySqlHandlerType.CONTINUE);
+        } else if(lexer.token() == Token.UNDO) {
+        	stmt.setHandleType(MySqlHandlerType.CONTINUE);
+        } else {
+        	throw new ParserException("unkown handle type");
+        }
+        lexer.nextToken();
+        
+        acceptIdentifier("HANDLER");
+
+        accept(Token.FOR);
+
+        for (;;) {
+        	String tokenName = lexer.stringVal();
+        	ConditionValue condition = new ConditionValue();
+        	
+        	if (tokenName.equalsIgnoreCase("NOT")) {//for 'NOT FOUND'
+        		lexer.nextToken();
+        		acceptIdentifier("HANDLE");
+        		condition.setType(ConditionType.SYSTEM);
+        		condition.setValue("NOT FOUND");
+        		
+			} else if(tokenName.equalsIgnoreCase("SQLSTATE")) { //for SQLSTATE (SQLSTATE '10001') 
+				condition.setType(ConditionType.SQLSTATE);
+				lexer.nextToken();
+        		//condition.setValue(lexer.stringVal());
+        		//lexer.nextToken();
+				condition.setValue(exprParser.name().toString());
+			} else if(identifierEquals("SQLEXCEPTION")) { //for SQLEXCEPTION
+				condition.setType(ConditionType.SYSTEM);
+        		condition.setValue(lexer.stringVal());
+        		lexer.nextToken();
+			} else if(identifierEquals("SQLWARNING")) { //for SQLWARNING
+				condition.setType(ConditionType.SYSTEM);
+        		condition.setValue(lexer.stringVal());
+        		lexer.nextToken();
+			} else { //for condition_name or mysql_error_code
+				if (lexer.token() == Token.LITERAL_INT) {
+					condition.setType(ConditionType.MYSQL_ERROR_CODE);
+					condition.setValue(lexer.integerValue().toString());
+				} else {
+					condition.setType(ConditionType.SELF);
+					condition.setValue(tokenName);
+				}
+				lexer.nextToken();
+			}
+        	stmt.getConditionValues().add(condition);
+            if (lexer.token() == Token.COMMA) {
+                accept(Token.COMMA);
+                continue;
+            } else if (lexer.token() != Token.EOF) {
+                break;
+            } else {
+                throw new ParserException("declare handle not eof");
+            }
+        }
+        
+        stmt.setSpStatement(parseSpStatement());
+
+        if (!(stmt.getSpStatement() instanceof SQLBlockStatement)) {
+        	accept(Token.SEMI);
+		}
+        
+
+        return stmt;
+    }
+    
+    /**
+     * zhujun [455910092@qq.com]
+     * 2016-04-17
+     * 定义条件
+     * @return
+     */
+    public MySqlDeclareConditionStatement parseDeclareCondition() {
+    	/*
+    	DECLARE condition_name CONDITION FOR condition_value
+
+    	condition_value:
+    	    SQLSTATE [VALUE] sqlstate_value
+    	  | mysql_error_code
+    	*/
+    	MySqlDeclareConditionStatement stmt = new MySqlDeclareConditionStatement();
+        accept(Token.DECLARE);
+
+        stmt.setConditionName(exprParser.name().toString());
+        
+        accept(Token.CONDITION);
+
+        accept(Token.FOR);
+        
+        String tokenName = lexer.stringVal();
+        ConditionValue condition = new ConditionValue();
+        if(tokenName.equalsIgnoreCase("SQLSTATE")) { //for SQLSTATE (SQLSTATE '10001') 
+			condition.setType(ConditionType.SQLSTATE);
+			lexer.nextToken();
+			condition.setValue(exprParser.name().toString());
+		} else if (lexer.token() == Token.LITERAL_INT) {
+			condition.setType(ConditionType.MYSQL_ERROR_CODE);
+			condition.setValue(lexer.integerValue().toString());
+			lexer.nextToken();
+		} else {
+			 throw new ParserException("declare condition grammer error.");
+		}
+        
+        stmt.setConditionValue(condition);
+
+        accept(Token.SEMI);
+    	
+    	return stmt;
+    }
 }

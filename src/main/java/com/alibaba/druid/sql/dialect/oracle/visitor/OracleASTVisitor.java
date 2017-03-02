@@ -23,7 +23,6 @@ import com.alibaba.druid.sql.dialect.oracle.ast.clause.FlashbackQueryClause.AsOf
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.FlashbackQueryClause.AsOfSnapshotClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.FlashbackQueryClause.VersionsFlashbackQueryClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.ModelClause;
-import com.alibaba.druid.sql.dialect.oracle.ast.clause.OracleErrorLoggingClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.OracleLobStorageClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.OracleReturningClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.OracleStorageClause;
@@ -37,10 +36,9 @@ import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleArgumentExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleBinaryDoubleExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleBinaryFloatExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleCursorExpr;
-import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDateExpr;
+import com.alibaba.druid.sql.ast.expr.SQLDateExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDatetimeExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDbLinkExpr;
-import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleExtractExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleIntervalExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleIsSetExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleOuterExpr;
@@ -64,7 +62,6 @@ import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCheck;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCommitStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCreateDatabaseDbLinkStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCreateIndexStatement;
-import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCreateSequenceStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCreateTableStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleDeleteStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleDropDbLinkStatement;
@@ -79,7 +76,6 @@ import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleGotoStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleInsertStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleLabelStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleLockTableStatement;
-import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleMergeStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleMultiInsertStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleMultiInsertStatement.ConditionalInsertClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleMultiInsertStatement.ConditionalInsertClauseItem;
@@ -111,13 +107,11 @@ public interface OracleASTVisitor extends SQLASTVisitor {
 
     void endVisit(OracleAnalyticWindowing x);
 
-    void endVisit(OracleDateExpr x);
+    void endVisit(SQLDateExpr x);
 
     void endVisit(OracleDbLinkExpr x);
 
     void endVisit(OracleDeleteStatement x);
-
-    void endVisit(OracleExtractExpr x);
 
     void endVisit(OracleIntervalExpr x);
 
@@ -149,13 +143,11 @@ public interface OracleASTVisitor extends SQLASTVisitor {
 
     boolean visit(OracleAnalyticWindowing x);
 
-    boolean visit(OracleDateExpr x);
+    boolean visit(SQLDateExpr x);
 
     boolean visit(OracleDbLinkExpr x);
 
     boolean visit(OracleDeleteStatement x);
-
-    boolean visit(OracleExtractExpr x);
 
     boolean visit(OracleIntervalExpr x);
 
@@ -268,22 +260,6 @@ public interface OracleASTVisitor extends SQLASTVisitor {
     boolean visit(ModelClause x);
 
     void endVisit(ModelClause x);
-
-    boolean visit(OracleMergeStatement x);
-
-    void endVisit(OracleMergeStatement x);
-
-    boolean visit(OracleMergeStatement.MergeUpdateClause x);
-
-    void endVisit(OracleMergeStatement.MergeUpdateClause x);
-
-    boolean visit(OracleMergeStatement.MergeInsertClause x);
-
-    void endVisit(OracleMergeStatement.MergeInsertClause x);
-
-    boolean visit(OracleErrorLoggingClause x);
-
-    void endVisit(OracleErrorLoggingClause x);
 
     boolean visit(OracleReturningClause x);
 
@@ -464,10 +440,6 @@ public interface OracleASTVisitor extends SQLASTVisitor {
     boolean visit(OracleAlterTablespaceStatement x);
 
     void endVisit(OracleAlterTablespaceStatement x);
-
-    boolean visit(OracleCreateSequenceStatement x);
-
-    void endVisit(OracleCreateSequenceStatement x);
 
     boolean visit(OracleExitStatement x);
 

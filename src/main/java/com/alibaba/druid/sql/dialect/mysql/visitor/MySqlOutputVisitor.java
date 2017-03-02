@@ -15,8 +15,11 @@
  */
 package com.alibaba.druid.sql.dialect.mysql.visitor;
 
+import java.security.AccessControlException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import com.alibaba.druid.sql.ast.SQLCommentHint;
 import com.alibaba.druid.sql.ast.SQLDataType;
@@ -27,26 +30,8 @@ import com.alibaba.druid.sql.ast.SQLParameter;
 import com.alibaba.druid.sql.ast.SQLSetQuantifier;
 import com.alibaba.druid.sql.ast.SQLStatement;
 import com.alibaba.druid.sql.ast.SQLSubPartitionBy;
-import com.alibaba.druid.sql.ast.expr.SQLAggregateExpr;
-import com.alibaba.druid.sql.ast.expr.SQLCharExpr;
-import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
-import com.alibaba.druid.sql.ast.expr.SQLNullExpr;
-import com.alibaba.druid.sql.ast.expr.SQLVariantRefExpr;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableAddColumn;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableItem;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableStatement;
-import com.alibaba.druid.sql.ast.statement.SQLAssignItem;
-import com.alibaba.druid.sql.ast.statement.SQLBlockStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCharacterDataType;
-import com.alibaba.druid.sql.ast.statement.SQLColumnConstraint;
-import com.alibaba.druid.sql.ast.statement.SQLColumnDefinition;
-import com.alibaba.druid.sql.ast.statement.SQLCreateProcedureStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCreateTableStatement;
-import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLIfStatement;
-import com.alibaba.druid.sql.ast.statement.SQLLoopStatement;
-import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
-import com.alibaba.druid.sql.ast.statement.SQLShowTablesStatement;
+import com.alibaba.druid.sql.ast.expr.*;
+import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.dialect.mysql.ast.MySqlForceIndexHint;
 import com.alibaba.druid.sql.dialect.mysql.ast.MySqlIgnoreIndexHint;
 import com.alibaba.druid.sql.dialect.mysql.ast.MySqlKey;
@@ -54,9 +39,13 @@ import com.alibaba.druid.sql.dialect.mysql.ast.MySqlPrimaryKey;
 import com.alibaba.druid.sql.dialect.mysql.ast.MySqlUnique;
 import com.alibaba.druid.sql.dialect.mysql.ast.MySqlUseIndexHint;
 import com.alibaba.druid.sql.dialect.mysql.ast.MysqlForeignKey;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.ConditionValue;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.ConditionValue.ConditionType;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlCaseStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlCaseStatement.MySqlWhenStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlCursorDeclareStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlDeclareConditionStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlDeclareHandlerStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlDeclareStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlIterateStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlLeaveStatement;
@@ -104,7 +93,6 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlReplaceStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlResetStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlRollbackStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock.Limit;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetCharSetStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetNamesStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetPasswordStatement;
@@ -151,7 +139,7 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowTableStatusSta
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowTriggersStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowVariantsStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowWarningsStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlStartTransactionStatement;
+import com.alibaba.druid.sql.ast.statement.SQLStartTransactionStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSubPartitionByKey;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSubPartitionByList;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlTableIndex;
@@ -159,6 +147,10 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnionQuery;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnlockTablesStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateTableSource;
+import com.alibaba.druid.sql.dialect.mysql.ast.statement.MysqlDeallocatePrepareStatement;
+import com.alibaba.druid.sql.visitor.ExportParameterVisitor;
+import com.alibaba.druid.sql.visitor.ExportParameterVisitorUtils;
+import com.alibaba.druid.sql.visitor.ParameterizedOutputVisitorUtils;
 import com.alibaba.druid.sql.visitor.SQLASTOutputVisitor;
 import com.alibaba.druid.util.JdbcConstants;
 
@@ -166,10 +158,40 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
 
     {
         this.dbType = JdbcConstants.MYSQL;
+        this.shardingSupport = true;
     }
 
     public MySqlOutputVisitor(Appendable appender){
         super(appender);
+    }
+
+    public MySqlOutputVisitor(Appendable appender, boolean parameterized){
+        super(appender, parameterized);
+
+        try {
+            configFromProperty(System.getProperties());
+        } catch (AccessControlException e) {
+            // skip
+        }
+    }
+
+    public void configFromProperty(Properties properties) {
+        if (parameterized) {
+            String property = properties.getProperty("druid.parameterized.shardingSupport");
+            if ("true".equals(property)) {
+                this.setShardingSupport(true);
+            } else if ("false".equals(property)) {
+                this.setShardingSupport(false);
+            }
+        }
+    }
+
+    public boolean isShardingSupport() {
+        return shardingSupport;
+    }
+
+    public void setShardingSupport(boolean shardingSupport) {
+        this.shardingSupport = shardingSupport;
     }
 
     @Override
@@ -283,6 +305,12 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
         if (x.isForUpdate()) {
             println();
             print0(ucase ? "FOR UPDATE" : "for update");
+            if (x.isNoWait()) {
+                print0(ucase ? " NO_WAIT" : " no_wait");    
+            } else if (x.getWaitTime() != null) {
+                print0(ucase ? " WAIT " : " wait ");
+                x.getWaitTime().accept(this);
+            }
         }
 
         if (x.isLockInShareMode()) {
@@ -295,8 +323,12 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
 
     public boolean visit(SQLColumnDefinition x) {
         x.getName().accept(this);
-        print(' ');
-        x.getDataType().accept(this);
+        
+        SQLDataType dataType = x.getDataType();
+		if (dataType != null) {
+	        print(' ');
+	        dataType.accept(this);
+        }
 
         if (x.getCharsetExpr() != null) {
             print0(ucase ? " CHARSET " : " charset ");
@@ -309,12 +341,8 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
         }
 
         if (x.getDefaultExpr() != null) {
-            if (x.getDefaultExpr() instanceof SQLNullExpr) {
-                print0(ucase ? " NULL" : " null");
-            } else {
-                print0(ucase ? " DEFAULT " : " default ");
-                x.getDefaultExpr().accept(this);
-            }
+            print0(ucase ? " DEFAULT " : " default ");
+            x.getDefaultExpr().accept(this);
         }
 
         if (x.getStorage() != null) {
@@ -346,17 +374,6 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
         if (x.isSorted()) {
             print0(ucase ? " SORTED" : " sorted"); 
         }
-
-        return false;
-    }
-
-    public boolean visit(MySqlSelectQueryBlock.Limit x) {
-        print0(ucase ? "LIMIT " : "limit ");
-        if (x.getOffset() != null) {
-            x.getOffset().accept(this);
-            print0(", ");
-        }
-        x.getRowCount().accept(this);
 
         return false;
     }
@@ -421,11 +438,6 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
     }
 
     @Override
-    public void endVisit(Limit x) {
-
-    }
-
-    @Override
     public void endVisit(MySqlTableIndex x) {
 
     }
@@ -473,7 +485,7 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
             print0(ucase ? "IF NOT EXISTS " : "if not exists ");
         }
 
-        x.getName().accept(this);
+        printTableSourceExpr(x.getName());
 
         if (x.getLike() != null) {
             print0(ucase ? " LIKE " : " like ");
@@ -623,11 +635,39 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
     }
 
     public boolean visit(SQLCharExpr x) {
+        if (this.parameterized
+                && ParameterizedOutputVisitorUtils.checkParameterize(x)) {
+            print('?');
+            incrementReplaceCunt();
+            if (this instanceof ExportParameterVisitor || this.parameters != null) {
+                ExportParameterVisitorUtils.exportParameter(this.parameters, x);
+            }
+            return false;
+        }
+
         print('\'');
 
         String text = x.getText();
-        text = text.replaceAll("'", "''");
-        text = text.replace("\\", "\\\\");
+        
+        StringBuilder buf = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); ++i) {
+            char ch = text.charAt(i);
+            if (ch == '\'') {
+                buf.append('\'');
+                buf.append('\'');
+            } else if (ch == '\\') {
+                buf.append('\\');
+                buf.append('\\');
+            } else if (ch == '\0') {
+                buf.append('\\');
+                buf.append('0');
+            } else {
+                buf.append(ch);
+            }
+        }
+        if (buf.length() != text.length()) {
+            text = buf.toString();
+        }
 
         print0(text);
 
@@ -641,9 +681,8 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
             int index = x.getIndex();
 
             if (index >= 0 && index < parametersSize) {
-                Object param = this.getParameters().get(index);
-                printParameter(param);
-                return false;
+
+                return super.visit(x);
             }
         }
 
@@ -775,7 +814,8 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
     @Override
     public boolean visit(MySqlIntervalExpr x) {
         print0(ucase ? "INTERVAL " : "interval ");
-        x.getValue().accept(this);
+        SQLExpr value = x.getValue();
+        value.accept(this);
         print(' ');
         print0(ucase ? x.getUnit().name() : x.getUnit().name_lcase);
         return false;
@@ -846,6 +886,17 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
             printAndAccept(x.getParameters(), ", ");
         }
         return false;
+    }
+    
+    @Override
+    public void  endVisit(MysqlDeallocatePrepareStatement x) {
+    	
+    }
+    
+    public boolean visit(MysqlDeallocatePrepareStatement x) {
+    	print0(ucase ? "DEALLOCATE PREPARE " : "deallocate prepare ");
+    	x.getStatementName().accept(this);
+    	return false;
     }
 
     @Override
@@ -937,6 +988,10 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
         if (x.isIgnore()) {
             print0(ucase ? "IGNORE " : "ignore ");
         }
+        
+        if (x.isRollbackOnFail()) {
+            print0(ucase ? "ROLLBACK_ON_FAIL " : "rollback_on_fail ");
+        }
 
         print0(ucase ? "INTO " : "into ");
 
@@ -987,18 +1042,31 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
     }
 
     protected void printValuesList(MySqlInsertStatement x) {
+        List<SQLInsertStatement.ValuesClause> valuesList = x.getValuesList();
+
+        if (parameterized) {
+            print0(ucase ? "VALUES " : "values ");
+            incrementIndent();
+            valuesList.get(0).accept(this);
+            decrementIndent();
+            if (valuesList.size() > 1) {
+                this.incrementReplaceCunt();
+            }
+            return;
+        }
+
         print0(ucase ? "VALUES " : "values ");
         if (x.getValuesList().size() > 1) {
             incrementIndent();
         }
-        for (int i = 0, size = x.getValuesList().size(); i < size; ++i) {
+        for (int i = 0, size = valuesList.size(); i < size; ++i) {
             if (i != 0) {
                 print(',');
                 println();
             }
-            x.getValuesList().get(i).accept(this);
+            valuesList.get(i).accept(this);
         }
-        if (x.getValuesList().size() > 1) {
+        if (valuesList.size() > 1) {
             decrementIndent();
         }
     }
@@ -1149,12 +1217,7 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
     }
 
     @Override
-    public void endVisit(MySqlStartTransactionStatement x) {
-
-    }
-
-    @Override
-    public boolean visit(MySqlStartTransactionStatement x) {
+    public boolean visit(SQLStartTransactionStatement x) {
         print0(ucase ? "START TRANSACTION" : "start transaction");
         if (x.isConsistentSnapshot()) {
             print0(ucase ? " WITH CONSISTENT SNAPSHOT" : " with consistent snapshot");
@@ -1456,8 +1519,11 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
             print0(ucase ? "KILL CONNECTION " : "kill connection ");
         } else if (MySqlKillStatement.Type.QUERY.equals(x.getType())) {
             print0(ucase ? "KILL QUERY " : "kill query ");
+        } else {
+            print0(ucase ? "KILL " : "kill ");
         }
-        x.getThreadId().accept(this);
+        
+        printAndAccept(x.getThreadIds(), ", ");
         return false;
     }
 
@@ -1625,6 +1691,13 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
 
     @Override
     public boolean visit(MySqlUpdateStatement x) {
+        if (x.getReturning() != null && x.getReturning().size() > 0) {
+            print0(ucase ? "SELECT " : "select ");
+            printAndAccept(x.getReturning(), ", ");
+            println();
+            print0(ucase ? "FROM " : "from ");
+        }
+        
         print0(ucase ? "UPDATE " : "update ");
 
         if (x.isLowPriority()) {
@@ -1633,6 +1706,24 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
 
         if (x.isIgnore()) {
             print0(ucase ? "IGNORE " : "ignore ");
+        }
+        
+        if (x.isCommitOnSuccess()) {
+            print0(ucase ? "COMMIT_ON_SUCCESS " : "commit_on_success ");
+        }
+        
+        if (x.isRollBackOnFail()) {
+            print0(ucase ? "ROLLBACK_ON_FAIL " : "rollback_on_fail ");
+        }
+        
+        if (x.isQueryOnPk()) {
+            print0(ucase ? "QUEUE_ON_PK " : "queue_on_pk ");
+        }
+        
+        if (x.getTargetAffectRow() != null) {
+            print0(ucase ? "TARGET_AFFECT_ROW " : "target_affect_row ");
+            x.getTargetAffectRow().accept(this);
+            print(' ');
         }
 
         x.getTableSource().accept(this);
@@ -2402,7 +2493,7 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
         } else {
             print0(ucase ? "ALTER TABLE " : "alter table ");
         }
-        x.getName().accept(this);
+        printTableSourceExpr(x.getName());
         incrementIndent();
         for (int i = 0; i < x.getItems().size(); ++i) {
             SQLAlterTableItem item = x.getItems().get(i);
@@ -2423,7 +2514,37 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
             print0(ucase ? "UPGRADE PARTITIONING" : "upgrade partitioning");
         }
         
+        if (x.getTableOptions().size() > 0) {
+            println();
+        }
+        
         decrementIndent();
+        
+        int i = 0;
+        for (Map.Entry<String, SQLObject> option : x.getTableOptions().entrySet()) {
+            String key = option.getKey();
+            if (i != 0) {
+                print(' ');
+            }
+            print0(ucase ? key : key.toLowerCase());
+
+            if ("TABLESPACE".equals(key)) {
+                print(' ');
+                option.getValue().accept(this);
+                continue;
+            } else if ("UNION".equals(key)) {
+                print0(" = (");
+                option.getValue().accept(this);
+                print(')');
+                continue;
+            }
+
+            print0(" = ");
+
+            option.getValue().accept(this);
+            i++;
+        }
+        
         return false;
     }
 
@@ -2574,7 +2695,7 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
     }
 
     public boolean visit(SQLExprTableSource x) {
-        x.getExpr().accept(this);
+        printTableSourceExpr(x.getExpr());
 
         if (x.getAlias() != null) {
             print(' ');
@@ -2742,6 +2863,15 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
 
     @Override
     public boolean visit(MySqlCharExpr x) {
+        if (parameterized && ParameterizedOutputVisitorUtils.checkParameterize(x)) {
+            print('?');
+            incrementReplaceCunt();
+            if (this instanceof ExportParameterVisitor || this.parameters != null) {
+                ExportParameterVisitorUtils.exportParameter(this.parameters, x);
+            }
+            return false;
+        }
+
         print0(x.toString());
         return false;
     }
@@ -3422,4 +3552,60 @@ public class MySqlOutputVisitor extends SQLASTOutputVisitor implements MySqlASTV
     public void endVisit(MySqlSubPartitionByList x) {
 
     }
+
+
+	@Override
+	public boolean visit(MySqlDeclareHandlerStatement x) {
+		
+		print0(ucase ? "DECLARE " : "declare ");
+        print0(ucase ? x.getHandleType().toString().toUpperCase() : x.getHandleType().toString().toLowerCase());
+        print0(ucase ? " HANDLER FOR " : " handler for ");
+        for (int i = 0; i < x.getConditionValues().size(); i++) {
+			ConditionValue cv = x.getConditionValues().get(i);
+			if (cv.getType() == ConditionType.SQLSTATE) {
+				print0(ucase ? " SQLSTATE " : " sqlstate ");
+				print0(cv.getValue());
+			} else if (cv.getType() == ConditionType.MYSQL_ERROR_CODE) {
+				print0(cv.getValue());
+			} else if (cv.getType() == ConditionType.SELF) {
+				print0(cv.getValue());
+			} else if (cv.getType() == ConditionType.SYSTEM){
+				print0(ucase ? cv.getValue().toUpperCase() : cv.getValue().toLowerCase());
+			}
+			
+			if (i != x.getConditionValues().size() - 1) {
+				print0(", ");
+			}
+			
+		}
+        println();
+        return true;
+	}
+
+	@Override
+	public void endVisit(MySqlDeclareHandlerStatement x) {
+		
+	}
+
+	@Override
+	public boolean visit(MySqlDeclareConditionStatement x) {
+		print0(ucase ? "DECLARE " : "declare ");
+        print0(x.getConditionName());
+        print0(ucase ? " CONDITION FOR " : " condition for ");
+        
+        if (x.getConditionValue().getType() == ConditionType.SQLSTATE) {
+			print0(ucase ? "SQLSTATE " : "sqlstate ");
+			print0(x.getConditionValue().getValue());
+		} else {
+			print0(x.getConditionValue().getValue());
+		}
+        
+        println();
+		return false;
+	}
+
+	@Override
+	public void endVisit(MySqlDeclareConditionStatement x) {
+		
+	}
 } //

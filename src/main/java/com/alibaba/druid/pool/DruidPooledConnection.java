@@ -164,7 +164,7 @@ public class DruidPooledConnection extends PoolableWrapper implements javax.sql.
         }
 
         stmt.getPreparedStatementHolder().decrementInUseCount();
-        if (stmt.isPooled() && holder.isPoolPreparedStatements()) {
+        if (stmt.isPooled() && holder.isPoolPreparedStatements() && stmt.exceptionCount == 0) {
             holder.getStatementPool().put(stmt.getPreparedStatementHolder());
 
             stmt.clearResultSet();
@@ -173,6 +173,12 @@ public class DruidPooledConnection extends PoolableWrapper implements javax.sql.
             stmt.getPreparedStatementHolder().setFetchRowPeak(stmt.getFetchRowPeak());
 
             stmt.setClosed(true); // soft set close
+        } else if (stmt.isPooled() && holder.isPoolPreparedStatements()) {
+            // the PreparedStatement threw an exception
+            stmt.clearResultSet();
+            holder.removeTrace(stmt);
+
+            holder.getStatementPool().remove(stmt.getPreparedStatementHolder());
         } else {
             try {
                 //Connection behind the statement may be in invalid state, which will throw a SQLException.
@@ -346,7 +352,7 @@ public class DruidPooledConnection extends PoolableWrapper implements javax.sql.
 
     private void initStatement(PreparedStatementHolder stmtHolder) throws SQLException {
         stmtHolder.incrementInUseCount();
-        holder.getDataSource().initStatement(this, stmtHolder.getStatement());
+        holder.getDataSource().initStatement(this, stmtHolder.statement);
     }
 
     @Override
@@ -1192,23 +1198,37 @@ public class DruidPooledConnection extends PoolableWrapper implements javax.sql.
     }
     
     /**
-     * @since 1.1.17
+     * @since 1.0.17
      */
     public long getPhysicalConnectNanoSpan() {
         return this.holder.getCreateNanoSpan();
     }
     
     /**
-     * @since 1.1.17
+     * @since 1.0.17
      */
     public long getPhysicalConnectionUsedCount() {
         return this.holder.getUseCount();
     }
     
     /**
-     * @since 1.1.17
+     * @since 1.0.17
      */
     public long getConnectNotEmptyWaitNanos() {
         return this.holder.getLastNotEmptyWaitNanos();
+    }
+
+    /**
+     * @since  1.0.28
+     */
+    public Map<String, Object> getVariables() {
+        return this.holder.variables;
+    }
+
+    /**
+     * @since  1.0.28
+     */
+    public Map<String, Object> getGloablVariables() {
+        return this.holder.globleVariables;
     }
 }

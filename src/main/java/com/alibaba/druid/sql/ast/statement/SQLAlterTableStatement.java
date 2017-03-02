@@ -16,9 +16,12 @@
 package com.alibaba.druid.sql.ast.statement;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.alibaba.druid.sql.ast.SQLName;
+import com.alibaba.druid.sql.ast.SQLObject;
 import com.alibaba.druid.sql.ast.SQLStatementImpl;
 import com.alibaba.druid.sql.visitor.SQLASTVisitor;
 
@@ -35,6 +38,10 @@ public class SQLAlterTableStatement extends SQLStatementImpl implements SQLDDLSt
 
     private boolean                 removePatiting          = false;
     private boolean                 upgradePatiting         = false;
+    private Map<String, SQLObject>  tableOptions            = new LinkedHashMap<String, SQLObject>();
+
+    // odps
+    private boolean                 mergeSmallFiles         = false;
 
     public SQLAlterTableStatement(){
 
@@ -84,6 +91,14 @@ public class SQLAlterTableStatement extends SQLStatementImpl implements SQLDDLSt
         this.invalidateGlobalIndexes = invalidateGlobalIndexes;
     }
 
+    public boolean isMergeSmallFiles() {
+        return mergeSmallFiles;
+    }
+
+    public void setMergeSmallFiles(boolean mergeSmallFiles) {
+        this.mergeSmallFiles = mergeSmallFiles;
+    }
+
     public List<SQLAlterTableItem> getItems() {
         return items;
     }
@@ -112,6 +127,10 @@ public class SQLAlterTableStatement extends SQLStatementImpl implements SQLDDLSt
 
     public void setName(SQLName name) {
         this.setTableSource(new SQLExprTableSource(name));
+    }
+
+    public Map<String, SQLObject> getTableOptions() {
+        return tableOptions;
     }
 
     @Override
